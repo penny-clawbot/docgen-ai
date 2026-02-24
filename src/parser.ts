@@ -1,5 +1,3 @@
-import { parse } from '@babel/parser';
-import * as t from '@babel/types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -19,6 +17,7 @@ export interface ClassInfo {
   properties: string[];
   extends?: string;
   location: { file: string; line: number };
+  isExported: boolean;
 }
 
 export interface InterfaceInfo {
@@ -43,15 +42,9 @@ export interface CodeStructure {
   imports: string[];
 }
 
-/**
- * Parse JavaScript/TypeScript file and extract code structure
- */
 export function parseFile(filePath: string): CodeStructure {
   const code = fs.readFileSync(filePath, 'utf-8');
-  const ast = parse(code, {
-    sourceType: 'module',
-    plugins: ['typescript', 'jsx'],
-  });
+  const lines = code.split('\n');
 
   const structure: CodeStructure = {
     functions: [],
@@ -61,129 +54,89 @@ export function parseFile(filePath: string): CodeStructure {
     imports: [],
   };
 
-  // Traverse AST
-  const visitor = {
-    // Extract imports
-    ImportDeclaration(path: any) {
-      if (path.node.source?.value) {
-        structure.imports.push(path.node.source.value);
-      }
-    },
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
 
-    // Extract function declarations
-    FunctionDeclaration(path: any) {
-      const node = path.node;
-      const funcInfo: FunctionInfo = {
-        name: node.id?.name || 'anonymous',
-        params: node.params.map((p: any) => p.name || p.type?.name || '').join(', '),
-        returnType: node.returnType?.type?.name,
-        location: { file: filePath, line: node.loc?.start.line || 0 },
-        isExported: false,
-        isAsync: node.async || false,
-      };
-      structure.functions.push(funcInfo);
-    },
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+      continue;
+    }
 
-    // Export named functions
-    ExportNamedDeclaration(path: any) {
-      const node = path.node.declaration;
-      if (node?.type === 'FunctionDeclaration') {
-        const funcInfo: FunctionInfo = {
-          name: node.id?.name || 'anonymous',
-          params: node.params.map((p: any) => p.name || '').join(', ''),
-          returnType: node.returnType?.type?.name,
-          location: { file: filePath, line: node.loc?.start.line || 0 },
-          isExported: true,
-          isAsync: node.async || false,
-        };
-        structure.functions.push(funcInfo);
-      }
-    },
+    const functionMatch = trimmed.match(/(?:export\s+(?:async\s+)?function\s+|async\s+|)(\w+)\s*\(([^)]*)\)\s*(?::\s*(\w+))?/);
+    if (functionMatch) {
+      const isAsync = functionMatch[2]?.includes('async');
+      const name = functionMatch[3] || functionMatch[4];
+      const paramsStr = functionMatch[5] || '';
+      const params: string[] = paramsStr ? paramsStr.split(',').map((p: string) => p.trim()) : [];
+      const returnType = functionMatch[6] || 'void';
+      const isExport = trimmed.includes('export');
 
-    // Extract class declarations
-    ClassDeclaration(path: any) {
-      const node = path.node;
-      const classInfo: ClassInfo = {
-        name: node.id?.name || 'Anonymous',
+      structure.functions.push({
+        name,
+        params,
+        returnType,
+        location: { file: filePath, line: i + 1 },
+        isExported,
+        isAsync,
+      });
+      continue;
+    }
+
+    const classMatch = trimmed.match(/(?:export\s+class\s+|class\s+)(\w+)(?:\s+extends\s+(\w+))?/);
+    if (classMatch) {
+      const isExport = trimmed.includes('export');
+      const name = classMatch[2] || classMatch[3];
+      const extendsClass = classMatch[4] || undefined;
+
+      structure.classes.push({
+        name,
         methods: [],
         properties: [],
-        extends: node.superClass?.name,
-        location: { file: filePath, line: node.loc?.start.line || 0 },
-      };
-      structure.classes.push(classInfo);
-    },
+        extends: extendsClass,
+        location: { file: filePath, line: i + 1 },
+        isExported,
+      });
+      continue;
+    }
 
-    // Extract class methods
-    ClassMethod(path: any) {
-      const node = path.node;
-      const methodInfo: FunctionInfo = {
-        name: node.key?.name || 'method',
-        params: node.params?.map((p: any) => p.name || p.type?.name || '').join(', ') || '',
-        returnType: node.returnType?.type?.name,
-        location: { file: filePath, line: node.loc?.start.line || 0 },
-        isExported: false,
-        isAsync: node.async || false,
-      };
+    const interfaceMatch = trimmed.match(/(?:export\s+interface\s+|interface\s+)(\w+)\s*\{/);
+    if (interfaceMatch) {
+      const isExport = trimmed.includes('export');
+      const name = interfaceMatch[2] || interfaceMatch[3];
 
-      // Find parent class and add method
-      const parent = path.findParent((p: any) => p.type === 'ClassDeclaration');
-      if (parent?.node?.name) {
-        const parentClass = structure.classes.find(c => c.name === parent.node.name);
-        if (parentClass) {
-          parentClass.methods.push(methodInfo);
-        }
-      }
-    },
-
-    // Extract interface declarations
-    TSInterfaceDeclaration(path: any) {
-      const node = path.node;
-      const interfaceInfo: InterfaceInfo = {
-        name: node.id?.name || 'Unnamed',
+      structure.interfaces.push({
+        name,
         properties: [],
         methods: [],
-        location: { file: filePath, line: node.loc?.start.line || 0 },
-      };
-      structure.interfaces.push(interfaceInfo);
-    },
+        location: { file: filePath, line: i + 1 },
+      });
+      continue;
+    }
 
-    // Extract interface properties
-    TSPropertySignature(path: any) {
-      const node = path.node;
-      const propertyName = node.key?.name || 'unnamed';
-      const parent = path.findParent((p: any) => p.type === 'TSInterfaceDeclaration');
-      if (parent?.node?.name) {
-        const parentInterface = structure.interfaces.find(i => i.name === parent.node.name);
-        if (parentInterface) {
-          parentInterface.properties.push(propertyName);
-        }
-      }
-    },
+    const typeMatch = trimmed.match(/(?:export\s+type\s+|type\s+)(\w+)\s*=\s*(.+?);/);
+    if (typeMatch) {
+      const name = typeMatch[2] || typeMatch[3];
+      const typeDef = typeMatch[4] || 'any';
 
-    // Extract type aliases
-    TSTypeAliasDeclaration(path: any) {
-      const node = path.node;
-      const typeInfo: TypeInfo = {
-        name: node.id?.name || 'Unnamed',
-        type: 'object', // Simplified for now
-        location: { file: filePath, line: node.loc?.start.line || 0 },
-      };
-      structure.types.push(typeInfo);
-    },
-  };
+      structure.types.push({
+        name,
+        type: typeDef.includes('interface') ? 'object' : 'primitive',
+        location: { file: filePath, line: i + 1 },
+      });
+      continue;
+    }
 
-  // Walk the AST
-  // @ts-ignore - visitor types
-  // @ts-ignore - traverse function
-  // @ts-ignore
-  (ast as any).traverse(visitor);
+    const importMatch = trimmed.match(/import\s+(?:\{[^}]+\}|\w+(?:\s*,\s*\w+)*)\s+from\s+['"]([^'"]+)['"]/);
+    if (importMatch) {
+      const imported = importMatch[1] || importMatch[2];
+      structure.imports.push(imported);
+      continue;
+    }
+  }
 
   return structure;
 }
 
-/**
- * Scan directory recursively and parse all matching files
- */
 export function scanDirectory(dirPath: string, extensions: string[] = ['.ts', '.tsx', '.js', '.jsx']): CodeStructure {
   const structure: CodeStructure = {
     functions: [],
@@ -211,9 +164,6 @@ export function scanDirectory(dirPath: string, extensions: string[] = ['.ts', '.
   return structure;
 }
 
-/**
- * Get all files in directory recursively
- */
 function getAllFiles(dirPath: string, extensions: string[]): string[] {
   const files: string[] = [];
 
@@ -224,7 +174,6 @@ function getAllFiles(dirPath: string, extensions: string[]): string[] {
       const fullPath = path.join(currentPath, entry.name);
 
       if (entry.isDirectory()) {
-        // Skip node_modules and hidden directories
         if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
           scan(fullPath);
         }

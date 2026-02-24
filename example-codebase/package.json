@@ -1,0 +1,6 @@
+{
+  "name": "example-codebase",
+  "version": "1.0.0",
+  "description": "Example codebase for testing DocGen.ai",
+  "type": "module"
+}

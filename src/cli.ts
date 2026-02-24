@@ -9,7 +9,7 @@ import { scanDirectory } from './parser.js';
 import { generateDocs, GenerationOptions } from './generator.js';
 
 const packageJson = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8')
+  fs.readFileSync(path.join(process.cwd(), 'docgen-ai', 'package.json'), 'utf-8')
 );
 
 const program = new Command();
