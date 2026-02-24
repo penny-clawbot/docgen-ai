@@ -1,0 +1,45 @@
+{
+  "name": "docgen-ai",
+  "version": "0.1.0",
+  "description": "AI-powered documentation generator from codebase",
+  "main": "dist/index.js",
+  "bin": {
+    "docgen": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "test": "node --test",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "documentation",
+    "generator",
+    "ast",
+    "ai",
+    "cli",
+    "code"
+  ],
+  "author": "Penny <penny@opencode.ai>",
+  "license": "MIT",
+  "dependencies": {
+    "@babel/parser": "^7.24.0",
+    "@babel/types": "^7.24.0",
+    "commander": "^11.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/docgen-ai.git"
+  }
+}
