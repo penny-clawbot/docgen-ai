@@ -7,7 +7,7 @@ export interface FunctionInfo {
   returnType?: string;
   description?: string;
   location: { file: string; line: number };
-  isExported: boolean;
+  isExport: boolean;
   isAsync: boolean;
 }
 
@@ -17,7 +17,7 @@ export interface ClassInfo {
   properties: string[];
   extends?: string;
   location: { file: string; line: number };
-  isExported: boolean;
+  isExport: boolean;
 }
 
 export interface InterfaceInfo {
@@ -76,7 +76,7 @@ export function parseFile(filePath: string): CodeStructure {
         params,
         returnType,
         location: { file: filePath, line: i + 1 },
-        isExported,
+        isExport,
         isAsync,
       });
       continue;
@@ -94,7 +94,7 @@ export function parseFile(filePath: string): CodeStructure {
         properties: [],
         extends: extendsClass,
         location: { file: filePath, line: i + 1 },
-        isExported,
+        isExport,
       });
       continue;
     }

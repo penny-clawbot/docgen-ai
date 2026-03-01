@@ -23,6 +23,9 @@
     "commander": "^11.1.0",
     "ora": "^5.4.1"
   },
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  },
   "files": [
     "src",
     "README.md"

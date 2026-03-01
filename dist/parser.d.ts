@@ -7,7 +7,7 @@ export interface FunctionInfo {
         file: string;
         line: number;
     };
-    isExported: boolean;
+    isExport: boolean;
     isAsync: boolean;
 }
 export interface ClassInfo {
@@ -19,7 +19,7 @@ export interface ClassInfo {
         file: string;
         line: number;
     };
-    isExported: boolean;
+    isExport: boolean;
 }
 export interface InterfaceInfo {
     name: string;

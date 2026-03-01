@@ -29,7 +29,7 @@ export function parseFile(filePath) {
                 params,
                 returnType,
                 location: { file: filePath, line: i + 1 },
-                isExported,
+                isExport,
                 isAsync,
             });
             continue;
@@ -45,7 +45,7 @@ export function parseFile(filePath) {
                 properties: [],
                 extends: extendsClass,
                 location: { file: filePath, line: i + 1 },
-                isExported,
+                isExport,
             });
             continue;
         }
